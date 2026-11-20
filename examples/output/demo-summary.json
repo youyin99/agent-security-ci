@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "report_type": "agent_security_ci_demo",
+  "all_expectations_met": true,
+  "results": [
+    {
+      "name": "baseline-vs-fixed",
+      "description": "The fixed report should pass.",
+      "expected_pass": true,
+      "actual_pass": true,
+      "failed_cases": [],
+      "expectation_met": true
+    },
+    {
+      "name": "baseline-vs-weakened",
+      "description": "A weakened permission check should fail and name exfil-001.",
+      "expected_pass": false,
+      "actual_pass": false,
+      "failed_cases": [
+        "exfil-001"
+      ],
+      "expectation_met": true
+    },
+    {
+      "name": "missing-baseline",
+      "description": "A missing baseline should fail closed.",
+      "expected_pass": false,
+      "actual_pass": false,
+      "failed_cases": [],
+      "expectation_met": true
+    }
+  ]
+}

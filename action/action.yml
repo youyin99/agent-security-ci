@@ -1,0 +1,53 @@
+name: Agent Security Gate
+description: Compare an AgentProbe report with an approved baseline and fail the job on security regressions.
+author: youyin99
+inputs:
+  baseline:
+    description: Path to the approved baseline AgentProbe report. If omitted or missing, the gate fails closed by default.
+    required: false
+  current:
+    description: Path to the current AgentProbe report.
+    required: true
+  config:
+    description: Path to the gate policy JSON.
+    required: false
+  out:
+    description: Directory for gate-report.json and gate-report.html.
+    required: false
+    default: .agent-security/reports
+  python-version:
+    description: Python version used to run the gate.
+    required: false
+    default: "3.12"
+outputs:
+  report:
+    description: Path to the gate JSON report.
+    value: ${{ steps.gate.outputs.report }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install gate
+      shell: bash
+      run: python -m pip install --disable-pip-version-check "${{ github.action_path }}/.."
+    - name: Run security gate
+      id: gate
+      shell: bash
+      env:
+        BASELINE: ${{ inputs.baseline }}
+        CURRENT: ${{ inputs.current }}
+        CONFIG: ${{ inputs.config }}
+        OUT: ${{ inputs.out }}
+      run: |
+        set -euo pipefail
+        args=(gate --current "$CURRENT" --out "$OUT" --github-annotations)
+        if [[ -n "${BASELINE:-}" ]]; then
+          args+=(--baseline "$BASELINE")
+        fi
+        if [[ -n "${CONFIG:-}" ]]; then
+          args+=(--config "$CONFIG")
+        fi
+        agent-security-ci "${args[@]}"
+        echo "report=$OUT/gate-report.json" >> "$GITHUB_OUTPUT"

@@ -1,0 +1,62 @@
+name: Agent Security Gate
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  security-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Replace v1.0.0 with the released tag you want to pin.
+      - name: Install AgentProbe and the gate
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            "git+https://github.com/youyin99/agentprobe.git@v1.0.0" \
+            "git+https://github.com/youyin99/agent-security-ci.git@v1.0.0"
+
+      - name: Run offline AgentProbe evaluation
+        run: |
+          python -m agentprobe run \
+            --cases fixtures/cases \
+            --workspace fixtures/workspace \
+            --out reports \
+            --strict
+
+      # .security/agentprobe-baseline.json should be an approved report kept
+      # under review. Never generate the baseline from the pull-request branch
+      # in the same job: that would make every regression self-approving.
+      - name: Enforce security regression gate
+        uses: youyin99/agent-security-ci/action@v1
+        with:
+          baseline: .security/agentprobe-baseline.json
+          current: reports/agentprobe-report.json
+          config: .security/gate-policy.json
+          out: reports/gate
+
+      - name: Upload security reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-security-reports
+          path: |
+            reports/agentprobe-report.json
+            reports/agentprobe-report.html
+            reports/gate/gate-report.json
+            reports/gate/gate-report.html
+          if-no-files-found: warn
